@@ -124,3 +124,84 @@ func (mc *MetaChunk) readChunk(b *bytes.Reader) {
 	mc.readChunkBytes(b, mc.Chk.Size)
 	mc.readChunkCRC(b)
 }
+func (mc *MetaChunk) readChunkSize(b *bytes.Reader) {
+	if err := binary.Read(b, binary.BigEndian, &mc.Chk.Size); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (mc *MetaChunk) readChunkType(b *bytes.Reader) {
+	if err := binary.Read(b, binary.BigEndian, &mc.Chk.Type); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (mc *MetaChunk) readChunkBytes(b *bytes.Reader, cLen uint32) {
+	mc.Chk.Data = make([]byte, cLen)
+	if err := binary.Read(b, binary.BigEndian, &mc.Chk.Data); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (mc *MetaChunk) readChunkCRC(b *bytes.Reader) {
+	if err := binary.Read(b, binary.BigEndian, &mc.Chk.CRC); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (mc *MetaChunk) getOffset(b *bytes.Reader) {
+	offset, _ := b.Seek(0, 1)
+	mc.Offset = offset
+}
+
+func (mc *MetaChunk) chunkTypeToString() string {
+	h := fmt.Sprintf("%x", mc.Chk.Type)
+	decoded, _ := hex.DecodeString(h)
+	result := fmt.Sprintf("%s", decoded)
+	return result
+}
+
+func (mc *MetaChunk) checkCritType() string {
+	fChar := string([]rune(mc.chunkTypeToString())[0])
+	if fChar == strings.ToUpper(fChar) {
+		return "Critical"
+	}
+	return "Ancillary"
+}
+
+func (mc *MetaChunk) validate(b *bytes.Reader) {
+	var header Header
+
+	if err := binary.Read(b, binary.BigEndian, &header.Header); err != nil {
+		log.Fatal(err)
+	}
+
+	bArr := make([]byte, 8)
+	binary.BigEndian.PutUint64(bArr, header.Header)
+
+	if string(bArr[1:4]) != "PNG" {
+		log.Fatal("Provided file is not a valid PNG format")
+	} else {
+		fmt.Println("Valid PNG so let us continue!")
+	}
+}
+
+func (mc *MetaChunk) createChunkSize() uint32 {
+	return uint32(len(mc.Chk.Data))
+}
+
+func (mc *MetaChunk) createChunkCRC() uint32 {
+	bytesMSB := new(bytes.Buffer)
+	if err := binary.Write(bytesMSB, binary.BigEndian, mc.Chk.Type); err != nil {
+		log.Fatal(err)
+	}
+	if err := binary.Write(bytesMSB, binary.BigEndian, mc.Chk.Data); err != nil {
+		log.Fatal(err)
+	}
+	return crc32.ChecksumIEEE(bytesMSB.Bytes())
+}
+
+func (mc *MetaChunk) strToInt(s string) uint32 {
+	t := []byte(s)
+	return binary.BigEndian.Uint32(t)
+}
