@@ -99,3 +99,28 @@ func (mc *MetaChunk) ProcessImage(b *bytes.Reader, c *models.CmdLineOpts) {
 			count++
 		}
 	}
+}
+func (mc *MetaChunk) marshalData() *bytes.Buffer {
+	bytesMSB := new(bytes.Buffer)
+	if err := binary.Write(bytesMSB, binary.BigEndian, mc.Chk.Size); err != nil {
+		log.Fatal(err)
+	}
+	if err := binary.Write(bytesMSB, binary.BigEndian, mc.Chk.Type); err != nil {
+		log.Fatal(err)
+	}
+	if err := binary.Write(bytesMSB, binary.BigEndian, mc.Chk.Data); err != nil {
+		log.Fatal(err)
+	}
+	if err := binary.Write(bytesMSB, binary.BigEndian, mc.Chk.CRC); err != nil {
+		log.Fatal(err)
+	}
+
+	return bytesMSB
+}
+
+func (mc *MetaChunk) readChunk(b *bytes.Reader) {
+	mc.readChunkSize(b)
+	mc.readChunkType(b)
+	mc.readChunkBytes(b, mc.Chk.Size)
+	mc.readChunkCRC(b)
+}
